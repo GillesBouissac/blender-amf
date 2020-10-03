@@ -20,3 +20,22 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# <pep8 compliant>
+
+from bpy.types import (
+    Operator
+)
+from bpy_extras.io_utils import (
+    ExportHelper
+)
+
+class ExportAMF(Operator, ExportHelper):
+    """
+        Export meshes in AMF file
+    """
+    # Blender mandatory attributes
+    bl_idname    = "export_mesh.amf"
+    bl_label     = "Export AMF"
+    filename_ext = ".amf"
+
+

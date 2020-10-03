@@ -20,3 +20,29 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+# <pep8 compliant>
+
+import bpy.types
+import bpy_extras.io_utils
+
+from bpy.types import (
+    Operator
+)
+from bpy_extras.io_utils import (
+    ImportHelper
+)
+
+class ImportAMF(Operator,ImportHelper):
+    """
+        Import meshes from AMF file
+    """
+    # Blender mandatory attributes
+    bl_idname = "import_mesh.amf"
+    bl_label  = "Import AMF"
+
+
+
+
+
+
+
