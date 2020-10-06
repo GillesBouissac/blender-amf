@@ -1,0 +1,370 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A namespace should be declared in xs:schema, e.g. targetNamespace="http://schemas.astm.org/amf/2013/01" and xmlns="http://schemas.astm.org/amf/2013/01" -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xml="http://www.w3.org/XML/1998/namespace" elementFormDefault="unqualified" attributeFormDefault="unqualified" blockDefault="#all">
+
+	<xs:import namespace="http://www.w3.org/XML/1998/namespace" schemaLocation="http://www.w3.org/2001/xml.xsd"/>
+
+	<xs:annotation>
+		<xs:documentation>
+		<![CDATA[
+		Schema notes:
+
+		Items within this schema follow a simple naming convention of appending a prefix indicating the type of element for references:
+
+		Unprefixed: Element names
+		CT_: Complex types
+		ST_: Simple types
+		AG_: Attribute groups
+
+		Some format rules cannot be enforced with this schema; the burden is on the consumer to verify these. The un-enforced rules include:
+		- There must be at least one <object> element as a child of the <amf> element
+		- Restrictions on geometries described in 6.6 of the specification
+		- Misuse of reserved metadata
+		- No circular references in constellations
+		]]>
+		</xs:documentation>
+	</xs:annotation>
+
+	<!-- Complex Types -->
+	<xs:complexType name="CT_Amf">
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="object"/>
+				<xs:element ref="material" minOccurs="0"/>
+				<xs:element ref="texture" minOccurs="0"/>
+				<xs:element ref="constellation" minOccurs="0"/>
+				<xs:element ref="metadata" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Amf"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Object">
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="color" minOccurs="0"/>
+				<xs:element ref="mesh"/>
+				<xs:element ref="metadata" minOccurs="0" maxOccurs="unbounded"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Object"/>
+	</xs:complexType>
+	
+	<xs:complexType name="CT_Color">
+		<xs:sequence>
+			<xs:element ref="r"/>
+			<xs:element ref="g"/>
+			<xs:element ref="b"/>
+			<xs:element ref="a" minOccurs="0"/>
+		</xs:sequence>
+	</xs:complexType>
+	
+	<xs:complexType name="CT_Mesh">
+		<xs:sequence>
+			<xs:element ref="vertices"/>
+			<xs:element ref="volume"/>
+		</xs:sequence>
+	</xs:complexType>
+	
+	<xs:complexType name="CT_Vertices">
+		<xs:sequence>
+			<xs:element ref="vertex" maxOccurs="unbounded"/>
+			<xs:element ref="edge" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+	</xs:complexType>
+	
+	<xs:complexType name="CT_Vertex">
+		<xs:sequence>
+			<xs:choice maxOccurs="unbounded">
+				<xs:element ref="metadata" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="coordinates"/>
+				<xs:element ref="color" minOccurs="0"/>
+				<xs:element ref="normal" minOccurs="0"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Coordinates">
+		<xs:sequence>
+			<xs:element ref="x"/>
+			<xs:element ref="y"/>
+			<xs:element ref="z"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Normal">
+		<xs:sequence>
+			<xs:element ref="nx"/>
+			<xs:element ref="ny"/>
+			<xs:element ref="nz"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Edge">
+		<xs:sequence>
+			<xs:element ref="v1"/>
+			<xs:element ref="dx1"/>
+			<xs:element ref="dy1"/>
+			<xs:element ref="dz1"/>
+			<xs:element ref="v2"/>
+			<xs:element ref="dx2"/>
+			<xs:element ref="dy2"/>
+			<xs:element ref="dz2"/>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Volume">
+		<xs:sequence>
+			<xs:choice minOccurs="0" maxOccurs="unbounded">
+				<xs:element ref="metadata" minOccurs="0" maxOccurs="unbounded"/>
+				<xs:element ref="triangle" minOccurs="4" maxOccurs="unbounded"/>
+				<xs:element ref="color" minOccurs="0"/>
+			</xs:choice>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Volume"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Triangle">
+		<xs:sequence>
+			<xs:choice maxOccurs="5">
+				<xs:sequence>
+					<xs:element ref="v1"/>
+					<xs:element ref="v2"/>
+					<xs:element ref="v3"/>
+					<xs:element ref="texmap" minOccurs="0"/>
+				</xs:sequence>
+				<xs:element ref="color" minOccurs="0"/>
+			</xs:choice>
+		</xs:sequence>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Texture">
+		<xs:simpleContent>
+			<xs:extension base="ST_TextureBase">
+				<xs:attributeGroup ref="AG_Texture"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<xs:complexType name="CT_TexMap">
+		<xs:sequence>
+			<xs:element ref="utex1"/>
+			<xs:element ref="utex2"/>
+			<xs:element ref="utex3"/>
+			<xs:element ref="vtex1"/>
+			<xs:element ref="vtex2"/>
+			<xs:element ref="vtex3"/>
+			<xs:element ref="wtex1" minOccurs="0"/>
+			<xs:element ref="wtex2" minOccurs="0"/>
+			<xs:element ref="wtex3" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_TexMap"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Material">
+		<xs:sequence>
+			<xs:element ref="metadata" minOccurs="0" maxOccurs="unbounded"/>
+			<xs:element ref="composite" minOccurs="0" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Material"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Composite">
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attributeGroup ref="AG_Composite"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Constellation">
+		<xs:sequence>
+			<xs:element ref="instance" minOccurs="2" maxOccurs="unbounded"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Constellation"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Instance">
+		<xs:sequence>
+			<xs:element ref="deltax" minOccurs="0"/>
+			<xs:element ref="deltay" minOccurs="0"/>
+			<xs:element ref="deltaz" minOccurs="0"/>
+			<xs:element ref="rx" minOccurs="0"/>
+			<xs:element ref="ry" minOccurs="0"/>
+			<xs:element ref="rz" minOccurs="0"/>
+		</xs:sequence>
+		<xs:attributeGroup ref="AG_Instance"/>
+	</xs:complexType>
+
+	<xs:complexType name="CT_Metadata">
+		<xs:simpleContent>
+			<xs:extension base="xs:string">
+				<xs:attributeGroup ref="AG_Metadata"/>
+			</xs:extension>
+		</xs:simpleContent>
+	</xs:complexType>
+
+	<!-- Simple Types -->
+	<xs:simpleType name="ST_NegOneToOne">
+		<xs:restriction base="ST_Double">
+			<xs:minInclusive value="-1.0"/>
+			<xs:maxInclusive value="1.0"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_Double">
+		<xs:restriction base="xs:double">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="((\-|\+)?(([0-9]+(\.[0-9]+)?)|(\.[0-9]+))((e|E)(\-|\+)?[0-9]+)?)"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_Degrees">
+		<xs:restriction base="ST_Double">
+			<xs:minInclusive value="-360"/>
+			<xs:maxInclusive value="360"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_Unit">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="inch"/>
+			<xs:enumeration value="millimeter"/>
+			<xs:enumeration value="meter"/>
+			<xs:enumeration value="feet"/>
+			<xs:enumeration value="micron"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_TextureBase">
+		<xs:restriction base="xs:string">
+			<xs:whiteSpace value="collapse"/>
+			<xs:pattern value="([0-9]|[a-z]|[A-Z]|\+|\/|\=)+"/>
+		</xs:restriction>
+	</xs:simpleType>
+	
+	<xs:simpleType name="ST_TextureType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="grayscale"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_VolumeType">
+		<xs:restriction base="xs:string">
+			<xs:enumeration value="object"/>
+			<xs:enumeration value="support"/>
+		</xs:restriction>
+	</xs:simpleType>
+
+	<xs:simpleType name="ST_ColorValue">
+		<xs:restriction base="xs:string">
+		</xs:restriction>
+	</xs:simpleType>
+
+	<!-- Elements -->
+	<xs:element name="amf" type="CT_Amf"/>
+	<xs:element name="object" type="CT_Object"/>
+	<xs:element name="color" type="CT_Color"/>
+	<xs:element name="r" type="ST_ColorValue"/>
+	<xs:element name="g" type="ST_ColorValue"/>
+	<xs:element name="b" type="ST_ColorValue"/>
+	<xs:element name="a" type="ST_ColorValue"/>
+	<xs:element name="mesh" type="CT_Mesh"/>
+	<xs:element name="vertices" type="CT_Vertices"/>
+	<xs:element name="vertex" type="CT_Vertex"/>
+	<xs:element name="coordinates" type="CT_Coordinates"/>
+	<xs:element name="x" type="ST_Double"/>
+	<xs:element name="y" type="ST_Double"/>
+	<xs:element name="z" type="ST_Double"/>
+	<xs:element name="normal" type="CT_Normal"/>
+	<xs:element name="edge" type="CT_Edge"/>
+	<xs:element name="dx1" type="ST_NegOneToOne"/>
+	<xs:element name="dy1" type="ST_NegOneToOne"/>
+	<xs:element name="dz1" type="ST_NegOneToOne"/>
+	<xs:element name="dx2" type="ST_NegOneToOne"/>
+	<xs:element name="dy2" type="ST_NegOneToOne"/>
+	<xs:element name="dz2" type="ST_NegOneToOne"/>
+	<xs:element name="nx" type="ST_NegOneToOne"/>
+	<xs:element name="ny" type="ST_NegOneToOne"/>
+	<xs:element name="nz" type="ST_NegOneToOne"/>
+	<xs:element name="volume" type="CT_Volume"/>
+	<xs:element name="triangle" type="CT_Triangle"/>
+	<xs:element name="v1" type="xs:nonNegativeInteger"/>
+	<xs:element name="v2" type="xs:nonNegativeInteger"/>
+	<xs:element name="v3" type="xs:nonNegativeInteger"/>
+	<xs:element name="texture" type="CT_Texture"/>
+	<xs:element name="texmap" type="CT_TexMap"/>
+	<xs:element name="utex1" type="ST_Double"/>
+	<xs:element name="utex2" type="ST_Double"/>
+	<xs:element name="utex3" type="ST_Double"/>
+	<xs:element name="vtex1" type="ST_Double"/>
+	<xs:element name="vtex2" type="ST_Double"/>
+	<xs:element name="vtex3" type="ST_Double"/>
+	<xs:element name="wtex1" type="ST_Double"/>
+	<xs:element name="wtex2" type="ST_Double"/>
+	<xs:element name="wtex3" type="ST_Double"/>
+	<xs:element name="material" type="CT_Material"/>
+	<xs:element name="composite" type="CT_Composite"/>
+	<xs:element name="constellation" type="CT_Constellation"/>
+	<xs:element name="instance" type="CT_Instance"/>
+	<xs:element name="deltax" type="ST_Double"/>
+	<xs:element name="deltay" type="ST_Double"/>
+	<xs:element name="deltaz" type="ST_Double"/>
+	<xs:element name="rx" type="ST_Degrees"/>
+	<xs:element name="ry" type="ST_Degrees"/>
+	<xs:element name="rz" type="ST_Degrees"/>
+	<xs:element name="metadata" type="CT_Metadata"/>
+
+	<!-- Attribute Groups -->
+	<xs:attributeGroup name="AG_Amf">
+		<xs:attribute name="unit" type="ST_Unit"/>
+		<xs:attribute name="version" type="ST_Double"/>
+		<xs:attribute ref="xml:lang"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Object">
+		<xs:attribute name="id" type="xs:integer" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Volume">
+		<xs:attribute name="materialid" type="xs:nonNegativeInteger"/>
+		<xs:attribute name="type" type="ST_VolumeType"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Texture">
+		<xs:attribute name="id" type="xs:integer" use="required"/>
+		<xs:attribute name="width" type="xs:nonNegativeInteger" use="required"/>
+		<xs:attribute name="height" type="xs:nonNegativeInteger" use="required"/>
+		<xs:attribute name="depth" type="xs:nonNegativeInteger" use="required"/>
+		<xs:attribute name="tiled" type="xs:boolean" use="required"/>
+		<xs:attribute name="type" type="ST_TextureType" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_TexMap">
+		<xs:attribute name="rtexid" type="xs:nonNegativeInteger"/>
+		<xs:attribute name="gtexid" type="xs:nonNegativeInteger"/>
+		<xs:attribute name="btexid" type="xs:nonNegativeInteger"/>
+		<xs:attribute name="atexid" type="xs:nonNegativeInteger"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Material">
+		<xs:attribute name="id" type="xs:integer" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Composite">
+		<xs:attribute name="materialid" type="xs:nonNegativeInteger" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Constellation">
+		<xs:attribute name="id" type="xs:integer" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Instance">
+		<xs:attribute name="objectid" type="xs:nonNegativeInteger" use="required"/>
+	</xs:attributeGroup>
+
+	<xs:attributeGroup name="AG_Metadata">
+		<xs:attribute name="type" type="xs:string" use="required"/>
+	</xs:attributeGroup>
+
+</xs:schema>

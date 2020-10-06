@@ -1,17 +1,17 @@
 # MIT License
-# 
+#
 # Copyright (c) 2020 Gilles Bouissac
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-# 
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,6 +21,22 @@
 # SOFTWARE.
 
 # <pep8 compliant>
+
+# Auto reload module to be able to update code without blender restart
+if "bpy" in locals():
+    import importlib
+    print("Reloading io_mesh_amf modules")
+    if "export_amf" in locals():
+        importlib.reload(export_amf)
+    if "import_amf" in locals():
+        importlib.reload(import_amf)
+
+import bpy.types
+import bpy.utils
+
+from .import_amf import ImportAMF
+from .export_amf import ExportAMF
+
 
 # Blender plugin manifest
 bl_info = {
@@ -34,40 +50,28 @@ bl_info = {
     "category":    "Import-Export"
 }
 
-# Auto reload module to be able to update code without blender restart
-if "bpy" in locals():
-    import importlib
-    print ( "Reloading io_mesh_amf modules" )
-    if "export_amf" in locals():
-        importlib.reload(export_amf)
-    if "import_amf" in locals():
-        importlib.reload(import_amf)
-
-import bpy.types
-import bpy.utils
-
-from .import_amf import ImportAMF
-from .export_amf import ExportAMF
+_AMF_FORMAT_DESCRIPTION = "Additive Manufacturing Format (.amf)"
 
 
 def menu_import(self, _):
     """
     Called from blender import the menu item.
     """
-    self.layout.operator(ImportAMF.bl_idname, text="Additive Manufacturing Format (.amf)")
+    self.layout.operator(ImportAMF.bl_idname, text=_AMF_FORMAT_DESCRIPTION)
 
 
 def menu_export(self, _):
     """
     Called from blender export the menu item.
     """
-    self.layout.operator(ExportAMF.bl_idname, text="Additive Manufacturing Format (.amf)")
+    self.layout.operator(ExportAMF.bl_idname, text=_AMF_FORMAT_DESCRIPTION)
 
 
 classes = (
     ImportAMF,
     ExportAMF
 )
+
 
 def register():
     for cls in classes:
@@ -83,5 +87,3 @@ def unregister():
 
     bpy.types.TOPBAR_MT_file_import.remove(menu_import)
     bpy.types.TOPBAR_MT_file_export.remove(menu_export)
-
-
