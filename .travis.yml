@@ -1,0 +1,10 @@
+language: python
+python:
+  - 3.5
+  - 3.8
+install:
+  - pip install -r requirements-test.txt
+script:
+  - pytest-3 --cov=io_mesh_amf --cov-report html
+
+
