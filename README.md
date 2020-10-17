@@ -1,5 +1,5 @@
 
-# blender-amf
+# blender-amf [![Build Status](https://travis-ci.com/GillesBouissac/blender-amf.svg?branch=master)](https://travis-ci.com/GillesBouissac/blender-amf)
 
 Blender addon for export objects from Additive Manufacturing Format *AMF*
 
