@@ -14,13 +14,15 @@ Don't know if I will implement everything, i don't really need material/textures
 
 * [o] Export AMF from blender
 
-  * [o] Mesh support
+  * [o] Single mesh support
+  * [o] Grouped mesh support
   * [ ] Material support
   * [ ] Texture support
 
 * [ ] Import AMF to blender
 
-  * [ ] Mesh support
+  * [ ] Single mesh support
+  * [ ] Grouped mesh support
   * [ ] Material support
   * [ ] Texture support
 
