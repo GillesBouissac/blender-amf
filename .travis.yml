@@ -7,6 +7,6 @@ install:
 before_script:
   - pip install -e .
 script:
-  - pytest --cov=io_mesh_amf --cov-report html
+  - pytest --cov=io_mesh_amf --cov-report term
 
 
