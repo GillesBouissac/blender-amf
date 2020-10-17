@@ -1,12 +1,10 @@
 
 # blender-amf
 
-Blender addon for exporting/importing objects to/from AMF file
+Blender addon for export objects from Additive Manufacturing Format *AMF*
 
-Just because i'm tired to export every parts of my designs individually (STL)
-    and then reconstruct the aggregation in my Slicer
-    
-Thus, this is a very simple implementation only meshes are exported with no material/textures
+To ease the transfer of multiple grouped objects from Blender to PrusaSlicer
+    This is a very simple implementation only meshes are exported for now.
 
 # Features
 
