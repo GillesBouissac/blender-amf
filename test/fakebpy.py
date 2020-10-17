@@ -33,7 +33,12 @@ from fakemodule import fakeType, fakePackage
 
 # Fake blender classes that will allow us to mock every API
 class _Operator:
-    pass
+    def as_keywords(self, ignore):
+        result = {}
+        for key in self.__dict__.keys():
+            if key not in ignore:
+                result[key] = self.__dict__[key]
+        return result
 
 
 class _ImportHelper:
@@ -75,4 +80,5 @@ fakeType({
     'bpy.props.FloatProperty':              Mock,
     'bpy.props.EnumProperty':               Mock,
     'bpy.context':                          Mock(),
+    'bpy.data':                             Mock,
 })

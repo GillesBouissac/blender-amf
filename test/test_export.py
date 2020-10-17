@@ -24,264 +24,185 @@
 
 import os
 import sys
-import types
-import inspect
 import fakebpy
 import tempfile
 import pytest
 import xmlschema
 import traceback
 import bpy
-from mathutils import Matrix
-from unittest.mock import Mock, patch, PropertyMock
+from unittest.mock import Mock
 from zipfile import ZipFile
+
 from io_mesh_amf import ExportAMF
+from io_mesh_amf.amf_util import AMFExport, Group, flatten
 
 
-def is_scaling_matrix(matrix):
-    """ A scaling only matrix has non zero values on its diagonal """
-    scaling = Matrix.Identity(4)
-    scaling[0][0] = matrix[0][0]
-    scaling[1][1] = matrix[1][1]
-    scaling[2][2] = matrix[2][2]
-    scaling[3][3] = matrix[3][3]
-    return matrix == scaling
+def with_obj_names(objs):
+    if type(objs) not in (list, Group):
+        return objs.name
+    obj_list = objs
+    if type(objs) is Group:
+        obj_list = objs.objects
+    res = []
+    for obj in obj_list:
+        res.append(with_obj_names(obj))
+    return res
 
 
-class TestExportBeforeExecute():
-    """ Verifications before execute can be called """
+class Test_build_groups():
+    """ Verifications of build_groups method """
 
-    def test_compute_scaling_invalid(self):
+    def test_none(self, export, empty_012):
         # Prepare
-        export = ExportAMF()
-        export.target_unit = 'ua'
+        export.group_strategy = 'none'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        (target_unit, scale, matrix) = export.compute_scaling()
+        groups = export.build_groups(flatten(empty_012))
         # Check
-        assert target_unit == 'meter'
-        assert scale == 1
-        assert isinstance(matrix, Matrix) is True
-        assert matrix == Matrix.Identity(4)
+        self._check_groups(groups, [
+            ['cube_0'], ['cube_1'],  ['cube_2'],
+            ['empty_0'], ['empty_1'], ['empty_2'],
+            ['empty_12'], ['empty_012']
+        ])
 
-    def test_compute_scaling_meter(self):
+    def test_all(self, export, empty_012):
         # Prepare
-        export = ExportAMF()
-        export.target_unit = 'meter'
+        export.group_strategy = 'all'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        (target_unit, scale, matrix) = export.compute_scaling()
+        groups = export.build_groups(flatten(empty_012))
         # Check
-        assert target_unit == 'meter'
-        assert scale == 1
-        assert isinstance(matrix, Matrix) is True
-        assert matrix == Matrix.Identity(4)
+        self._check_groups(groups, [[
+            'cube_0',  'cube_1',  'cube_2',
+            'empty_0', 'empty_1', 'empty_2',
+            'empty_12', 'empty_012'
+        ]])
 
-    def test_compute_scaling_inch(self):
+    def test_parents_selected(self, export, empty_0, empty_12, empty_012):
         # Prepare
-        export = ExportAMF()
-        export.target_unit = 'inch'
+        export.group_strategy = 'parents_selected'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        (target_unit, scale, matrix) = export.compute_scaling()
+        objs = flatten(empty_0)
+        objs.extend(flatten(empty_12))
+        groups = export.build_groups(objs)
         # Check
-        assert target_unit == 'inch'
-        assert scale == 39.37008
-        assert isinstance(matrix, Matrix) is True
-        assert is_scaling_matrix(matrix) is True
+        self._check_groups(groups, [
+            ['cube_0', 'empty_0'],
+            ['cube_1',  'cube_2', 'empty_1', 'empty_2', 'empty_12']
+        ])
 
-
-class vertex():
-    co = []
-
-    def __init__(self, x, y, z):
-        self.co = [x, y, z]
-
-
-class triangle():
-    vertices = []
-
-    def __init__(self, v1, v2, v3):
-        self.vertices = [v1, v2, v3]
-
-
-@pytest.fixture
-def cube_mesh():
-    """ cube mesh """
-    mesh = Mock()
-    mesh.vertices = [
-        vertex(0, 0, 0),
-        vertex(1, 0, 0),
-        vertex(1, 1, 0),
-        vertex(0, 1, 0),
-        vertex(0, 1, 1),
-        vertex(1, 1, 1),
-        vertex(1, 0, 1),
-        vertex(0, 0, 1)
-    ]
-    mesh.loop_triangles = [
-        triangle(0, 2, 1),
-        triangle(0, 3, 2),
-        triangle(2, 3, 4),
-        triangle(2, 4, 5),
-        triangle(1, 2, 5),
-        triangle(1, 5, 6),
-        triangle(0, 7, 4),
-        triangle(0, 4, 3),
-        triangle(5, 4, 7),
-        triangle(5, 7, 6),
-        triangle(0, 6, 7),
-        triangle(0, 1, 6),
-    ]
-    return mesh
-
-
-@pytest.fixture
-def cube(cube_mesh):
-    """ cube object """
-    obj = Mock()
-    obj.mode = 'OBJECT'
-    obj.name = 'cube'
-    obj.mesh_mock = cube_mesh
-    obj.to_mesh.return_value = cube_mesh
-    obj.matrix_world = Matrix.Identity(4)
-    obj.update_from_editmode = Mock()
-    obj.evaluated_get = lambda s: s
-    return obj
-
-
-@pytest.fixture
-def context():
-    """ empty context """
-    context = Mock()
-    context.scene.name = "Nom de scene pour test"
-    return context
-
-
-@pytest.fixture
-def context_cube(context, cube):
-    """ context with cube object """
-    context.selected_objects = [cube]
-    return context
-
-
-@pytest.fixture
-def export():
-    """ Export object to test with all default properties """
-    tempName = f"{tempfile.gettempdir()}/test_export.amf"
-    exp = ExportAMF()
-    exp.filepath = tempName
-    exp.use_selection = True
-    exp.use_mesh_modifiers = False
-    exp.target_unit = 'meter'
-    exp.group_strategy = 'parent'
-    return exp
-
-
-class TestExportObject2mesh():
-    """ Verifications of object2mesh """
-
-    def test_object2mesh_noop(self, export, context, cube):
-        # Test
-        cube.mode = 'OBJECT'
-        with patch.object(cube, "evaluated_get") as evaluated_get:
-            ret = export.object2mesh(cube, Matrix.Identity(4))
-            # Check
-            cube.to_mesh.assert_called_once_with()
-            cube.evaluated_get.assert_not_called()
-        assert ret == cube.mesh_mock
-        cube.update_from_editmode.assert_not_called()
-        cube.mesh_mock.calc_loop_triangles.assert_called_once_with()
-
-    def test_object2mesh_no_mesh(self, export, context, cube):
-        # Test
-        with patch.object(cube, 'to_mesh', return_value=None) as to_mesh:
-            ret = export.object2mesh(cube, Matrix.Identity(4))
-            # Check
-            cube.to_mesh.assert_called_once_with()
-        assert ret is None
-
-    def test_object2mesh_mesh_except(self, export, context, cube):
+    def test_parents_visible(self, export, empty_0, empty_2, empty_012):
         # Prepare
+        export.group_strategy = 'parents_visible'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        cube.to_mesh.side_effect = Exception('Mock cant build mesh')
-        ret = export.object2mesh(cube, Matrix.Identity(4))
+        objs = flatten(empty_0)
+        objs.extend(flatten(empty_2))
+        print(f"objs = {with_obj_names(objs)}")
+        groups = export.build_groups(objs)
         # Check
-        cube.to_mesh.assert_called_once_with()
-        assert ret is None
+        self._check_groups(groups, [
+            # In the tree from empty_012 only those are in the selection
+            ['empty_0', 'cube_0', 'empty_2', 'cube_2']
+        ])
 
-    def test_object2mesh_editmode(self, export, context, cube):
+    def test_parents_viewable(self, export, empty_0, empty_1, empty_012):
         # Prepare
-        cube.mode = 'EDIT'
+        export.group_strategy = 'parents_viewable'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        with patch.object(cube, "evaluated_get") as evaluated_get:
-            ret = export.object2mesh(cube, Matrix.Identity(4))
-            # Check
-            cube.evaluated_get.assert_not_called()
-        assert ret == cube.mesh_mock
-        cube.update_from_editmode.assert_called_once_with()
-        cube.to_mesh.assert_called_once_with()
-        cube.mesh_mock.calc_loop_triangles.assert_called_once_with()
+        objs = flatten(empty_0)
+        objs.extend(flatten(empty_1))
+        groups = export.build_groups(objs)
+        # Check
+        self._check_groups(groups, [
+            # The first viewable parent is empty_1 making a group
+            ['cube_1', 'empty_1'],
+            ['cube_0'],
+            ['empty_0']
+        ])
 
-    def test_object2mesh_modifiers(self, export, context, cube):
+    def test_parents_renderable(self, export, empty_0, empty_2, empty_012):
         # Prepare
-        obj_modified = Mock()
-        obj_modified.to_mesh.return_value = cube.mesh_mock
-        obj_modified.matrix_world = Matrix.Identity(4)
-        fake_depsgraph = "fake_depsgraph"
-        bpy.context.evaluated_depsgraph_get.return_value = fake_depsgraph
+        export.group_strategy = 'parents_renderable'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        ret = None
-        cube.mode = 'OBJECT'
-        export.use_mesh_modifiers = True
-        with patch.object(cube, "evaluated_get") as evaluated_get:
-            evaluated_get.return_value = obj_modified
-            ret = export.object2mesh(cube, Matrix.Identity(4))
-            # Check
-            evaluated_get.assert_called_once_with(fake_depsgraph)
-        assert ret == cube.mesh_mock
-        cube.update_from_editmode.assert_not_called()
-        obj_modified.to_mesh.assert_called_once_with()
-        cube.mesh_mock.calc_loop_triangles.assert_called_once_with()
+        objs = flatten(empty_0)
+        objs.extend(flatten(empty_2))
+        groups = export.build_groups(objs)
+        # Check
+        self._check_groups(groups, [
+            ['cube_0', 'empty_0'],
+            ['cube_2', 'empty_2']
+        ])
 
-    def test_object2mesh_scale(self, export, context, cube):
+    def test_parents_any(self, export, empty_0, empty_2, empty_012):
         # Prepare
-        cube.mode = 'EDIT'
-        export.target_unit = 'millimeter'
+        export.group_strategy = 'parents_any'
+        bpy.data.objects = flatten(empty_012)
         # Test
-        (unit, scale, matrix) = export.compute_scaling()
-        ret = export.object2mesh(cube, matrix)
-        assert ret == cube.mesh_mock
-        # Check that the coordinated have been reduced
-        assert unit == 'millimeter'
-        assert scale == 1000
-        ret.transform.assert_called_once_with(matrix)
+        objs = flatten(empty_0)
+        objs.extend(flatten(empty_2))
+        groups = export.build_groups(objs)
+        # Check
+        self._check_groups(groups, [
+            ['cube_0', 'empty_0', 'cube_2', 'empty_2']
+        ])
+
+    def test_no_group_from_parent(self, export, empty_2, empty_012):
+        # Prepare
+        export.group_strategy = 'parents_viewable'
+        bpy.data.objects = flatten(empty_012)
+        # Test
+        objs = flatten(empty_2)
+        groups = export.build_groups(objs)
+        # Check
+        self._check_groups(groups, [
+            ['cube_2'],
+            ['empty_2']
+        ])
+
+    def _group_equals(self, group, groupref):
+        for obj in group:
+            found = False
+            for objref in groupref:
+                if obj == objref:
+                    groupref.remove(objref)
+                    found = True
+                    break
+            if not found:
+                return False
+        return len(groupref) == 0
+
+    def _check_groups(self, groups, groupsref):
+        groupscheck = with_obj_names(groups)
+        print(f"Groups generated: {groupscheck}")
+        print(f"Groups expected:  {groupsref}")
+        for group in groupscheck:
+            if type(group) is not list:
+                group = [group]
+            found = False
+            for groupref in groupsref:
+                if self._group_equals(group, groupref):
+                    groupsref.remove(groupref)
+                    found = True
+                    break
+            if not found:
+                grpstr = with_obj_names(group)
+                pytest.fail(f"group {grpstr} not found in {groupsref}")
+        if not len(groupsref) == 0:
+            pytest.fail(f"ref groups {groupsref} not found in {grpsstr}")
 
 
-class TestExportExecute():
+class Test_execute():
     """ Verifications of full execution """
 
-    def test_execute_exception(self, context_cube):
-        # Test, don't define export.filepath
-        export = ExportAMF()
-        ret = export.execute(context_cube)
-        # Check
-        assert ret == {'CANCELLED'}
-
-    def test_execute_no_file(self, export):
-        # Test
-        export.filepath = ""
-        ret = export.execute(context_cube)
-        # Check
-        assert ret == {'CANCELLED'}
-
-    def test_execute(self, export, context_cube):
-        # Test
-        export.target_unit = 'inch'
-        ret = export.execute(context_cube)
-        # Check
-        assert ret == {'FINISHED'}
-        # Check this is a zip archive
+    def check_archive(self, filepath):
+        """ Check filepath is a valid amf archive """
         prefix = "test_export_check"
         with tempfile.TemporaryDirectory(prefix=prefix) as extractDir:
-            with ZipFile(export.filepath, 'r') as amffile:
+            with ZipFile(filepath, 'r') as amffile:
                 ziplist = amffile.infolist()
                 assert len(ziplist) == 1
                 zipxml = ziplist[0]
@@ -296,4 +217,70 @@ class TestExportExecute():
                     print(f"Error exporting AMF file: {exc_value}")
                     traceback.print_tb(exc_traceback, file=sys.stdout)
                     pytest.fail(str(exc_value))
-        pass
+
+    def test_execute_exception(self, context_cube):
+        # Test, don't define export.filepath
+        export = ExportAMF()
+        ret = export.execute(context_cube)
+        # Check
+        assert ret == {'CANCELLED'}
+
+    def test_execute_no_file(self, export, context_cube):
+        # Test
+        export.filepath = ""
+        ret = export.execute(context_cube)
+        # Check
+        assert ret == {'CANCELLED'}
+
+    def test_execute_single_object(self, export, context, empty_012):
+        # Prepare
+        export.export_strategy = "selection"
+        export.group_strategy = 'parents_selected'
+        context.selected_objects = flatten(empty_012)
+        print(f"selected_objects = {flatten(empty_012)}")
+        export.target_unit = 'inch'
+        # Test
+        ret = export.execute(context)
+        # Check
+        assert ret == {'FINISHED'}
+        context.selected_objects[0].to_mesh.assert_called_once_with()
+        self.check_archive(export.filepath)
+
+    def test_execute_all_selected_native(self, export, context, empty_012):
+        # Prepare
+        export.export_strategy = "selection"
+        export.group_strategy = 'all'
+        export.export_format = 'native'
+        context.selected_objects = flatten(empty_012)
+        # Test
+        ret = export.execute(context)
+        # Check
+        assert ret == {'FINISHED'}
+        for obj in context.selected_objects:
+            obj.to_mesh.assert_called()
+            if "cube" in obj.name:
+                obj.mesh_mock.calc_loop_triangles.assert_called()
+            else:
+                obj.mesh_mock.calc_loop_triangles.assert_not_called()
+
+        self.check_archive(export.filepath)
+
+    def test_execute_all_selected_slicer(self, export, context, empty_012):
+        # Prepare
+        export.export_strategy = "selection"
+        export.group_strategy = 'all'
+        export.export_format = 'slic3r'
+        context.selected_objects = flatten(empty_012)
+        # Test
+        ret = export.execute(context)
+        # Check
+        assert ret == {'FINISHED'}
+        for obj in context.selected_objects:
+            obj.to_mesh.assert_called()
+            if "cube" in obj.name:
+                obj.mesh_mock.calc_loop_triangles.assert_called()
+            else:
+                obj.mesh_mock.calc_loop_triangles.assert_not_called()
+
+        # we had to cheat with schema
+        self.check_archive(export.filepath)

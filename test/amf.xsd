@@ -62,7 +62,7 @@
 	<xs:complexType name="CT_Mesh">
 		<xs:sequence>
 			<xs:element ref="vertices"/>
-			<xs:element ref="volume"/>
+			<xs:element ref="volume" maxOccurs="unbounded"/>
 		</xs:sequence>
 	</xs:complexType>
 	
@@ -179,7 +179,7 @@
 
 	<xs:complexType name="CT_Constellation">
 		<xs:sequence>
-			<xs:element ref="instance" minOccurs="2" maxOccurs="unbounded"/>
+			<xs:element ref="instance" minOccurs="1" maxOccurs="unbounded"/>
 		</xs:sequence>
 		<xs:attributeGroup ref="AG_Constellation"/>
 	</xs:complexType>

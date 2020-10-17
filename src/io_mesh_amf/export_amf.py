@@ -26,23 +26,16 @@ import os
 import sys
 import traceback
 import bpy
-from mathutils import Matrix
 from bpy.types import Operator
 from bpy.props import BoolProperty, StringProperty, FloatProperty, EnumProperty
 from bpy_extras.io_utils import ExportHelper
-from zipfile import ZipFile
-from tempfile import NamedTemporaryFile, gettempdir
-from .fastxml import XMLWriter
+from zipfile import ZipFile, ZIP_DEFLATED
+from tempfile import gettempdir
 
-
-# Conversions from Blender units (meter) to AMF units
-_UNIT_CONVERSION = {
-    'meter': 1,
-    'millimeter': 1e3,
-    'micron': 1e6,
-    'inch': 39.37008,
-    'feet': 3.28084,
-}
+from . fastxml import XMLWriter
+from . amf_util import AMFExport, Group, flatten
+from . amf_native import AMFNative
+from . amf_slic3r import AMFSlic3r
 
 
 class ExportAMF(Operator, ExportHelper):
@@ -55,11 +48,6 @@ class ExportAMF(Operator, ExportHelper):
 
     # Blender optional attributes
     filter_glob:   StringProperty(default="*.amf", options={'HIDDEN'})
-    use_selection: BoolProperty(
-        name="Selection Only",
-        description="Export selected objects only",
-        default=True,
-    )
     use_mesh_modifiers: BoolProperty(
         name="Apply Modifiers",
         description="Apply Modifiers to the exported mesh",
@@ -76,17 +64,50 @@ class ExportAMF(Operator, ExportHelper):
         ),
         default="meter"
     )
+    export_format: EnumProperty(
+        name="Export format",
+        items=(
+            ("native", "AMF Native",
+                """ Closest as possible to AMF format """),
+            ("slic3r", "AMF Silc3r",
+                """ AMF compatible with Silc3r """),
+        ),
+        default="native",
+    )
+    export_strategy: EnumProperty(
+        name="Export strategy",
+        items=(
+            ("selection", "Selection only",
+                """ Only selected object are exported """),
+            ("visible", "Visible objects",
+                """ Every object visible in the viewport are exported """),
+            ("viewable", "Viewable objects",
+                """ Every viewable object are exported """),
+            ("renderable", "renderable objects",
+                """ Every renderable object are exported """),
+        ),
+        default="selection",
+    )
     group_strategy: EnumProperty(
         name="Grouping strategy",
         items=(
-            ("parents", "Parents",
-                "Each exported parent root and its children are grouped"),
-            ('all', "All",
+            ("parents_any", "Common parent",
+                """ Groups are defined from topmost parents
+                All parents in file are used """),
+            ("parents_visible", "Common visible parent",
+                """ Groups from all parents visible in the viewport """),
+            ("parents_viewable", "Common viewable parent",
+                """ Groups from all parents viewable in viewports """),
+            ("parents_renderable", "Common renderable parent",
+                """ Groups from all parents renderable in the file """),
+            ("parents_selected", "Common exported parent",
+                """ Groups from all parent selected for this export """),
+            ('all', "One group with all objects",
                 "All exported objects are in a single group"),
-            ('none', "None",
+            ('none', "No group",
                 "Exported objects are not gouped"),
         ),
-        default="parents"
+        default="parents_any"
     )
 
     def __init__(self):
@@ -99,15 +120,29 @@ class ExportAMF(Operator, ExportHelper):
             if self.filepath is None or self.filepath == "":
                 return {'CANCELLED'}
 
+            # prepare objects for export
+            objects = self.select_objects(context)
+            groups = self.build_groups(objects)
+
+            # Open the target XML
             basename = os.path.basename(self.filepath)
             noext = os.path.splitext(basename)[0]
             tempName = f"{gettempdir()}/{noext}.xml"
 
+            if self.export_format == "native":
+                export_svc = AMFNative()
+            elif self.export_format == "slic3r":
+                export_svc = AMFSlic3r()
+            export_svc.target_unit = self.target_unit
+            export_svc.use_mesh_modifiers = self.use_mesh_modifiers
+
             with open(tempName, "w") as fd:
-                self.export_document(fd, context)
+                with XMLWriter(fd, 'utf-8') as xml:
+                    # Delegate XML writing to specific formaters
+                    export_svc.export_document(xml, context, objects, groups)
 
             # Put result in zip archive for final result
-            with ZipFile(self.filepath, 'w') as amffile:
+            with ZipFile(self.filepath, 'w', ZIP_DEFLATED) as amffile:
                 amffile.write(tempName, arcname=f"{basename}")
 
             os.remove(tempName)
@@ -120,128 +155,77 @@ class ExportAMF(Operator, ExportHelper):
 
         return {'FINISHED'}
 
-    def export_document(self, fd, context):
-        """ Format data in XML file conform to AMF schema """
-        if self.use_selection:
-            blender_objects = context.selected_objects
+    def select_objects(self, context):
+        objs = None
+        if self.export_strategy == "selection":
+            objs = context.selected_objects
         else:
-            blender_objects = context.scene.objects
+            objs = context.scene.objects
+            if self.export_strategy == "visible":
+                objs = filter(lambda o: o.visible_get(), objs)
+            elif self.export_strategy == "viewable":
+                objs = filter(lambda o: not o.hide_viewport, objs)
+            elif self.export_strategy == "renderable":
+                objs = filter(lambda o: not o.hide_render, objs)
+        return list(objs)
 
-        (target_unit, scale, matrix) = self.compute_scaling()
-        with XMLWriter(fd, 'utf-8') as xml:
-            attrs = {"unit": target_unit, "version": "1.1"}
-            with xml.element("amf", attrs) as root:
-                self.export_metadata(root, context.scene, "name")
-                self.export_metadata(root, scale, "scale")
-                self.export_objects(root, blender_objects, matrix)
-                self.export_constellations(root, blender_objects)
+    def tree_to_group(self, root, selecto, visited):
+        """ Build groups from a tree root """
+        group = Group(root.name, [])
+        for obj in flatten(root):
+            if hasattr(obj, "name"):
+                visited.append(obj)
+                if selecto(obj):
+                    group.append(obj)
+        return group
 
-    def object2mesh(self, obj, matrix):
-        """ Convert blender object to exportable mesh """
+    def parents_to_groups(self, selecto, selectp):
+        """ Browse parents untill we find those selectable to make group """
+        groups = []
+        visited = []
+        # Each loop take into account a non visited obj with:
+        #   no parent or already visited parent
+        while len(visited) < len(bpy.data.objects):
+            for obj in bpy.data.objects:
+                isParentDone = True
+                if hasattr(obj, "parent") and obj.parent is not None:
+                    if obj.parent not in visited:
+                        isParentDone = False
+                if obj not in visited and isParentDone:
+                    if selectp(obj):
+                        subgroup = self.tree_to_group(obj, selecto, visited)
+                        if len(subgroup.objects) > 0:
+                            groups.append(subgroup)
+                    elif selecto(obj):
+                        visited.append(obj)
+                        groups.append(Group(obj.name, [obj]))
+                    else:
+                        visited.append(obj)
+        return groups
 
-        # Apply edited changes to the object
-        if obj.mode == 'EDIT':
-            obj.update_from_editmode()
-
-        # Apply modifiers as specified
-        if self.use_mesh_modifiers:
-            depsgraph = bpy.context.evaluated_depsgraph_get()
-            obj = obj.evaluated_get(depsgraph)
-
-        # Convert object to mesh
-        mesh = None
-        try:
-            mesh = obj.to_mesh()
-        finally:
-            if mesh is None:
-                print(f"Object {obj.name} is not exportable as mesh")
-                return None
-
-        # Mesh tesselation because AMF can only store triangles
-        mesh.calc_loop_triangles()
-
-        mat = matrix @ obj.matrix_world
-        mesh.transform(mat)
-        return mesh
-
-    def export_metadata(self, xml, obj, attr):
-        """ Export a single metadata from an obj attribute """
-        value = ""
-        if hasattr(obj, attr):
-            value = str(getattr(obj, attr, ''))
-        else:
-            value = str(obj)
-        with xml.helement("metadata", {"type": attr}) as xmeta:
-            xmeta.text(value)
-
-    def export_objects(self, xml, objs, matrix):
-        """ Export objects list """
-        for obj in objs:
-            self.export_object(xml, obj, matrix)
-
-    def export_object(self, xml, obj, matrix):
-        """ Export one object """
-        mesh = self.object2mesh(obj, matrix)
-        if mesh is not None:
-            with xml.element("object", {"id": 0}) as xobj:
-                self.export_metadata(xobj, obj, "name")
-                self.export_mesh(xobj, mesh)
-
-    def export_mesh(self, xml, mesh):
-        """ Export one mesh """
-        with xml.element("mesh") as xmesh:
-            self.export_vertices(xmesh, mesh.vertices)
-            self.export_volume(xmesh, mesh.loop_triangles)
-
-    def export_vertices(self, xml, vertices):
-        """ Export one list of vertices """
-        with xml.element("vertices") as xvs:
-            for vertex in vertices:
-                with xvs.helement("vertex") as xv:
-                    with xv.helement("coordinates") as xc:
-                        with xc.helement("x") as xx:
-                            xx.text(str(vertex.co[0]))
-                        with xc.helement("y") as xy:
-                            xy.text(str(vertex.co[1]))
-                        with xc.helement("z") as xz:
-                            xz.text(str(vertex.co[2]))
-
-    def export_volume(self, xml, triangles):
-        """ Export one list of vertices """
-        with xml.element("volume") as xvo:
-            for triangle in triangles:
-                with xvo.helement("triangle") as xt:
-                    with xt.helement("v1") as xv:
-                        xv.text(triangle.vertices[0])
-                    with xt.helement("v2") as xv:
-                        xv.text(triangle.vertices[1])
-                    with xt.helement("v3") as xv:
-                        xv.text(triangle.vertices[2])
-
-    def export_constellations(self, fd, objs):
-        """ Export objects groups as specified in self.group_strategy """
-        if self.group_strategy == "parents":
-            return
+    def build_groups(self, objs):
+        """ Computes groups according parent grouping strategy """
+        groups = []
+        if self.group_strategy == "parents_any":
+            return self.parents_to_groups(
+                lambda o: o in objs,
+                lambda o: True)
+        elif self.group_strategy == "parents_visible":
+            return self.parents_to_groups(
+                lambda o: o in objs,
+                lambda o: o.visible_get())
+        elif self.group_strategy == "parents_viewable":
+            return self.parents_to_groups(
+                lambda o: o in objs,
+                lambda o: not o.hide_viewport)
+        elif self.group_strategy == "parents_renderable":
+            return self.parents_to_groups(
+                lambda o: o in objs,
+                lambda o: not o.hide_render)
+        elif self.group_strategy == "parents_selected":
+            return self.parents_to_groups(
+                lambda o: o in objs,
+                lambda o: o in objs)
         elif self.group_strategy == "all":
-            return
-        else:
-            return
-        for obj in objs:
-            pass
-
-    def compute_scaling(self):
-        """ Select the better unit from blender to AMF
-        Blender internal locations are stored in meters but
-            we want the result to be close to what the user sees
-        Then compute the scale from blender coordinates to this unit
-        Returns the tuple (target_unit, scale_needed, matrix)
-            target_unit:  The recomputed target unit
-            scale_needed: False if the scaling matrix is identity
-            matrix:       Transformation Matrix to be applied to objects
-        """
-        unit = 'meter'
-        scale = 1
-        if self.target_unit in _UNIT_CONVERSION:
-            unit = self.target_unit
-            scale = _UNIT_CONVERSION[unit]
-        return (unit, scale, Matrix.Scale(scale, 4))
+            return [Group("all",objs)]
+        return [Group(o.name, [o]) for o in objs]
