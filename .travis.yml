@@ -5,6 +5,6 @@ python:
 install:
   - pip install -r requirements-test.txt
 script:
-  - pytest-3 --cov=io_mesh_amf --cov-report html
+  - pytest3 --cov=io_mesh_amf --cov-report html
 
 
