@@ -52,10 +52,10 @@ Test
   sudo apt-get install python3-pip
 
   pip3 install pytest
-  pip3 install coverage
   pip3 install pytest-cov
   pip3 install xmlschema
   pip3 install mathutils
+  pip3 install coveralls
 
   pip install -e .
   pytest
