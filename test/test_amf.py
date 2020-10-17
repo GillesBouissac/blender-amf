@@ -79,7 +79,6 @@ class Test_flatten():
         res = flatten(flatten(P))
         assert len(res) == 6
 
-
     def test_flatten_tuple(self):
         """ Blender obj.children are tuple """
         # Prepare

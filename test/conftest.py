@@ -53,6 +53,7 @@ from io_mesh_amf import ExportAMF
 #              o-- cube_2   [--- | --- | ren]
 #
 
+
 class vertex():
     co = []
 
@@ -230,28 +231,28 @@ def __empty_012():
 
 @pytest.fixture
 def empty_0(cube_0, __empty_0):
-    __empty_0.children = (cube_0) # Blender children are tuples
+    __empty_0.children = (cube_0)  # Blender children are tuples
     cube_0.parent = __empty_0
     return __empty_0
 
 
 @pytest.fixture
 def empty_1(cube_1, __empty_1):
-    __empty_1.children = (cube_1) # Blender children are tuples
+    __empty_1.children = (cube_1)  # Blender children are tuples
     cube_1.parent = __empty_1
     return __empty_1
 
 
 @pytest.fixture
 def empty_2(cube_2, __empty_2):
-    __empty_2.children = (cube_2) # Blender children are tuples
+    __empty_2.children = (cube_2)  # Blender children are tuples
     cube_2.parent = __empty_2
     return __empty_2
 
 
 @pytest.fixture
 def empty_12(__empty_12, empty_1, empty_2):
-    __empty_12.children = (empty_1, empty_2) # Blender children are tuples
+    __empty_12.children = (empty_1, empty_2)  # Blender children are tuples
     empty_1.parent = __empty_12
     empty_2.parent = __empty_12
     return __empty_12
@@ -260,7 +261,7 @@ def empty_12(__empty_12, empty_1, empty_2):
 @pytest.fixture
 def empty_012(__empty_012, empty_0, empty_12):
     __empty_012.parent = None
-    __empty_012.children = (empty_0, empty_12) # Blender children are tuples
+    __empty_012.children = (empty_0, empty_12)  # Blender children are tuples
     empty_0.parent = __empty_012
     empty_12.parent = __empty_012
     return __empty_012

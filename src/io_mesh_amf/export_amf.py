@@ -227,5 +227,5 @@ class ExportAMF(Operator, ExportHelper):
                 lambda o: o in objs,
                 lambda o: o in objs)
         elif self.group_strategy == "all":
-            return [Group("all",objs)]
+            return [Group("all", objs)]
         return [Group(o.name, [o]) for o in objs]

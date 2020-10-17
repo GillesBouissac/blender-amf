@@ -1,3 +1,4 @@
+
 # blender-amf
 
 Blender addon for exporting/importing objects to/from AMF file
@@ -11,14 +12,14 @@ Thus, this is a very simple implementation only meshes are exported with no mate
 
 Don't know if I will implement everything, i don't really need material/textures for 3D Printing
 
-[x] Export AMF from blender
-   [x] Mesh support
-   [ ] Material support
-   [ ] Texture support
-[ ] Import AMF to blender
-   [ ] Mesh support
-   [ ] Material support
-   [ ] Texture support
+* [x] Export AMF from blender
+  * [x] Mesh support
+  * [ ] Material support
+  * [ ] Texture support
+* [ ] Import AMF to blender
+  * [ ] Mesh support
+  * [ ] Material support
+  * [ ] Texture support
 
 # Installation
 
@@ -28,11 +29,11 @@ Don't know if I will implement everything, i don't really need material/textures
     * Local user installation all platform:
         * Zip src/io_mesh_amf and import that zip in Blender with:
         * "Edit/Preferences/Add-ons/Install"
-    * Multi user installation all platform: <blender root dir>/current/<version>/scripts/addons
-        * # Don't forget to replace <version> and <blender root dir> !
+    * Multi user installation all platform:
+        * `# Don't forget to replace <version> and <blender root dir>`
         * `cp -r src/io_mesh_amf <blender root dir>/current/<version>/scripts/addons/`
     * Other way for local user installation for Linux:
-        * # Don't forget to replace <version> !
+        * `# Don't forget to replace <version>`
         * `cp -r src/io_mesh_amf ~/.config/blender/<version>/scripts/addons/`
 
 # Test

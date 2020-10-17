@@ -94,7 +94,7 @@ class AMFSlic3r(AMFExport):
                 self.export_volume(
                     xmesh,
                     mesh.loop_triangles,
-                    [{"name":"name", "value":obj.name}],
+                    [{"name": "name", "value": obj.name}],
                     meshes_idx[i])
 
     def export_constellations(self, xml, groups):
