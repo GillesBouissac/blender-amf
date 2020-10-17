@@ -17,7 +17,7 @@ Don't know if I will implement everything, i don't really need material/textures
   * ``[X]`` Single mesh support
   * ``[X]`` Grouped mesh support
   * ``[.]`` Material support
-  * ``[. Texture support
+  * ``[.]`` Texture support
 
 * ``[.]`` Import AMF to blender
 
