@@ -1,3 +1,15 @@
+.. raw:: html
+
+   <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css">
+   <style>
+   .lnr-sad {
+      color: #808080;
+   }
+   .lnr-smile {
+      color: #00AA00;
+   }
+   </style>
+
 
 blender-amf |build-status| |coverage-status|
 ============================================
@@ -12,19 +24,19 @@ Features
 
 Don't know if I will implement everything, i don't really need material/textures for 3D Printing
 
-* [o] Export AMF from blender
+* |lng-smile| Export AMF from blender
 
-  * [o] Single mesh support
-  * [o] Grouped mesh support
-  * [ ] Material support
-  * [ ] Texture support
+  * |lng-smile| Single mesh support
+  * |lng-smile| Grouped mesh support
+  * |lng-sad| Material support
+  * |lng-sad| Texture support
 
-* [ ] Import AMF to blender
+* |lng-sad| Import AMF to blender
 
-  * [ ] Single mesh support
-  * [ ] Grouped mesh support
-  * [ ] Material support
-  * [ ] Texture support
+  * |lng-sad| Single mesh support
+  * |lng-sad| Grouped mesh support
+  * |lng-sad| Material support
+  * |lng-sad| Texture support
 
 Installation
 ------------
@@ -78,4 +90,11 @@ PEP 8
    :target: https://coveralls.io/r/GillesBouissac/blender-amf
    :alt: Test coverage percentage
 
+.. |lng-smile| raw:: html
+
+   <span class="lnr lnr-smile"></span>
+
+.. |lng-sad| raw:: html
+
+   <span class="lnr lnr-sad"></span>
 
