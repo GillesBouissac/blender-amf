@@ -1,6 +1,6 @@
 pytest
-coverage
 pytest-cov
 xmlschema
 mathutils
+coveralls
 

@@ -1,7 +1,7 @@
 
 # blender-amf [![Build Status](https://travis-ci.com/GillesBouissac/blender-amf.svg?branch=master)](https://travis-ci.com/GillesBouissac/blender-amf)
 
-Blender addon for export objects from Additive Manufacturing Format *AMF*
+Blender addon to export objects from Additive Manufacturing Format *AMF*
 
 To ease the transfer of multiple grouped objects from Blender to PrusaSlicer
     This is a very simple implementation only meshes are exported for now.
@@ -46,7 +46,8 @@ pip3 install pytest-cov
 pip3 install xmlschema
 pip3 install mathutils
 
-pytest-3 --cov=io_mesh_amf --cov-report html
+pip install -e .
+pytest
 ```
 
 # PEP 8
