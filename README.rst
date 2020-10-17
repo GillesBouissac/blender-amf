@@ -4,8 +4,8 @@ blender-amf |build-status| |coverage-status|
 
 Blender addon to export objects from Additive Manufacturing Format **AMF**
 
-To ease the transfer of multiple grouped objects from Blender to PrusaSlicer
-    This is a very simple implementation only meshes are exported for now.
+To ease the transfer of multiple grouped objects from Blender to PrusaSlicer.
+This is a very simple implementation only meshes are exported for now.
 
 Features
 --------
