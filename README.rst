@@ -12,19 +12,19 @@ Features
 
 Don't know if I will implement everything, i don't really need material/textures for 3D Printing
 
-* ``[X]`` Export AMF from blender
+* |checked| Export AMF from blender
 
-  * ``[X]`` Single mesh support
-  * ``[X]`` Grouped mesh support
-  * ``[.]`` Material support
-  * ``[.]`` Texture support
+  * |checked| Single mesh support
+  * |checked| Grouped mesh support
+  * |unchecked| Material support
+  * |unchecked| Texture support
 
-* ``[.]`` Import AMF to blender
+* |unchecked| Import AMF to blender
 
-  * ``[.]`` Single mesh support
-  * ``[.]`` Grouped mesh support
-  * ``[.]`` Material support
-  * ``[.]`` Texture support
+  * |unchecked| Single mesh support
+  * |unchecked| Grouped mesh support
+  * |unchecked| Material support
+  * |unchecked| Texture support
 
 Installation
 ------------
@@ -78,3 +78,7 @@ PEP 8
 .. |coverage-status| image:: https://img.shields.io/coveralls/GillesBouissac/blender-amf.svg
    :target: https://coveralls.io/r/GillesBouissac/blender-amf
    :alt: Test coverage percentage
+
+..  |checked| unicode:: U+2611
+..  |unchecked| unicode:: U+2610
+
