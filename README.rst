@@ -35,8 +35,8 @@ Installation
       + Zip src/io_mesh_amf and import that zip in Blender with:
       + "Edit/Preferences/Add-ons/Install"
    * Multi user installation all platform:
-      + ``# Don't forget to replace <version> and <blender root dir>``
-      + ``cp -r src/io_mesh_amf <blender root dir>/current/<version>/scripts/addons/``
+      + ``# Don't forget to replace <version> and <path/to/blender>``
+      + ``cp -r src/io_mesh_amf <path/to/blender>/current/<version>/scripts/addons/``
    * Other way for local user installation for Linux:
       + ``# Don't forget to replace <version>``
       + ``cp -r src/io_mesh_amf ~/.config/blender/<version>/scripts/addons/``
