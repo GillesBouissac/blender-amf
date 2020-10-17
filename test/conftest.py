@@ -28,7 +28,7 @@ import fakebpy
 import bpy
 from mathutils import Matrix
 from unittest.mock import Mock
-from io_mesh_amf import ExportAMF
+from io_mesh_amf.export_amf import ExportAMF
 
 #
 # Test model parent/child structure

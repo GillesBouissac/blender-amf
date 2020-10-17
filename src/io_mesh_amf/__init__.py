@@ -34,8 +34,8 @@ if "bpy" in locals():
 import bpy.types
 import bpy.utils
 
-from .import_amf import ImportAMF
-from .export_amf import ExportAMF
+from . import_amf import ImportAMF
+from . export_amf import ExportAMF
 
 
 # Blender plugin manifest
