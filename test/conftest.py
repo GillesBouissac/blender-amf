@@ -36,23 +36,49 @@ from io_mesh_amf.export_amf import ExportAMF
 #   vie: viewable in viewports
 #   ren: renderable
 #
-# empty_012                 [vis | --- | ---]
-#     |
-#     o-- empty_0           [vis | --- | ren]
-#     |    |
-#     |    o-- cube_0       [vis | --- | ---]
-#     |
-#     o-- empty_12          [vis | --- | ren]
-#         |
-#         o-- empty_1       [--- | vie | ---]
-#         |    |
-#         |    o-- cube_1   [--- | vie | ---]
-#         |
-#         o-- empty_2       [--- | --- | ---]
-#              |
-#              o-- cube_2   [--- | --- | ren]
+# Mesh objects:
 #
-
+#    empty_012               [vis | --- | ---]
+#      |
+#      o-- empty_0           [vis | vie | ren]
+#      |    |
+#      |    o-- cube_0       [vis | vie | ---]
+#      |
+#      o-- empty_12          [vis | vie | ren]
+#          |
+#          o-- empty_1       [--- | vie | ---]
+#          |    |
+#          |    o-- cube_1   [--- | vie | ---]
+#          |
+#          o-- empty_2       [--- | vie | ---]
+#               |
+#               o-- cube_2   [--- | vie | ren]
+#
+# Collections:
+#
+#    coll_0
+#      |
+#      o-- cube_0
+#      o-- cube_2
+#
+#    coll_1
+#      |
+#      o-- cube_1
+#
+# Collections instances:
+#
+#    inst_0
+#      |
+#      o-- coll_0
+#
+#    inst_1
+#      |
+#      o-- coll_0
+#
+#    inst_2
+#      |
+#      o-- coll_1
+#
 
 class vertex():
     co = []
@@ -81,12 +107,8 @@ def cube_vertices(x=1):
     ]
 
 
-@pytest.fixture
-def cube_mesh():
-    """ cube mesh """
-    mesh = Mock()
-    mesh.vertices = cube_vertices()
-    mesh.loop_triangles = [
+def cube_triangles():
+    return [
         triangle(0, 2, 1),
         triangle(0, 3, 2),
         triangle(2, 3, 4),
@@ -100,35 +122,45 @@ def cube_mesh():
         triangle(0, 6, 7),
         triangle(0, 1, 6),
     ]
-    return mesh
 
 
 @pytest.fixture
-def cube_0(cube_mesh):
+def cube_0():
     """ Visible cube object """
+    mesh = Mock()
+    mesh.vertices = cube_vertices(0)
+    mesh.loop_triangles = cube_triangles()
     obj = Mock()
     obj.name = 'cube_0'
     obj.mode = 'OBJECT'
-    obj.mesh_mock = cube_mesh
-    obj.to_mesh.return_value = cube_mesh
+    obj.mesh_mock = mesh
+    obj.to_mesh.return_value = mesh
     obj.matrix_world = Matrix.Identity(4)
     obj.update_from_editmode = Mock()
     obj.evaluated_get = lambda s: s
     obj.visible_get.return_value = True
-    obj.hide_viewport = True
+    obj.hide_viewport = False
     obj.hide_render = True
     obj.children = None
+    obj.active_material = None
+    obj.location = [0,0,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.is_instancer = False
     return obj
 
 
 @pytest.fixture
-def cube_1(cube_mesh):
+def cube_1():
     """ Viewable cube object shifted to 3 on x """
+    mesh = Mock()
+    mesh.vertices = cube_vertices(3)
+    mesh.loop_triangles = cube_triangles()
     obj = Mock()
     obj.name = 'cube_1'
     obj.mode = 'OBJECT'
-    obj.mesh_mock = cube_mesh
-    obj.to_mesh.return_value = cube_mesh
+    obj.mesh_mock = mesh
+    obj.to_mesh.return_value = mesh
     obj.matrix_world = Matrix.Identity(4)
     obj.mesh_mock.vertices = cube_vertices(3)
     obj.update_from_editmode = Mock()
@@ -137,25 +169,98 @@ def cube_1(cube_mesh):
     obj.hide_viewport = False
     obj.hide_render = True
     obj.children = None
+    obj.active_material = None
+    obj.location = [3,0,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.is_instancer = False
     return obj
 
 
 @pytest.fixture
-def cube_2(cube_mesh):
+def cube_2():
     """ Renderable cube object shifted to -3 on x """
+    mesh = Mock()
+    mesh.vertices = cube_vertices(-3)
+    mesh.loop_triangles = cube_triangles()
     obj = Mock()
     obj.name = 'cube_2'
     obj.mode = 'OBJECT'
-    obj.mesh_mock = cube_mesh
-    obj.to_mesh.return_value = cube_mesh
+    obj.mesh_mock = mesh
+    obj.to_mesh.return_value = mesh
     obj.matrix_world = Matrix.Identity(4)
     obj.mesh_mock.vertices = cube_vertices(-3)
     obj.update_from_editmode = Mock()
     obj.evaluated_get = lambda s: s
     obj.visible_get.return_value = False
-    obj.hide_viewport = True
+    obj.hide_viewport = False
     obj.hide_render = False
     obj.children = None
+    obj.active_material = None
+    obj.location = [-3,0,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.is_instancer = False
+    return obj
+
+
+@pytest.fixture
+def coll_0(cube_0, cube_2):
+    obj = Mock()
+    obj.name = "collection_0"
+    obj.all_objects = {
+        f"{cube_0.name}": cube_0,
+        f"{cube_2.name}": cube_2
+    }
+    return obj
+
+
+@pytest.fixture
+def coll_1(cube_1):
+    obj = Mock()
+    obj.name = "collection_1"
+    obj.all_objects = {
+        f"{cube_1.name}": cube_1
+    }
+    return obj
+
+
+@pytest.fixture
+def inst_0(coll_0):
+    obj = Mock()
+    obj.is_instancer = True
+    obj.name = "instance_0"
+    obj.instance_collection = coll_0
+    obj.location = [0,3,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.hide_viewport = False
+    return obj
+
+
+@pytest.fixture
+def inst_1(coll_0):
+    obj = Mock()
+    obj.is_instancer = True
+    obj.name = "instance_1"
+    obj.instance_collection = coll_0
+    obj.location = [0,0,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.hide_viewport = False
+    return obj
+
+
+@pytest.fixture
+def inst_2(coll_1):
+    obj = Mock()
+    obj.is_instancer = True
+    obj.name = "instance_2"
+    obj.instance_collection = coll_1
+    obj.location = [0,-3,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
+    obj.hide_viewport = False
     return obj
 
 
@@ -168,8 +273,12 @@ def __empty_0():
     obj.to_mesh.return_value = None
     obj.matrix_world = Matrix.Identity(4)
     obj.visible_get.return_value = True
-    obj.hide_viewport = True
+    obj.hide_viewport = False
     obj.hide_render = False
+    obj.is_instancer = False
+    obj.location = [0,0,-3]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
     return obj
 
 
@@ -184,6 +293,10 @@ def __empty_1():
     obj.visible_get.return_value = False
     obj.hide_viewport = False
     obj.hide_render = True
+    obj.is_instancer = False
+    obj.location = [0,0,-2]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
     return obj
 
 
@@ -196,8 +309,12 @@ def __empty_2():
     obj.to_mesh.return_value = None
     obj.matrix_world = Matrix.Identity(4)
     obj.visible_get.return_value = False
-    obj.hide_viewport = True
+    obj.hide_viewport = False
     obj.hide_render = True
+    obj.is_instancer = False
+    obj.location = [0,0,-1]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
     return obj
 
 
@@ -210,8 +327,12 @@ def __empty_12():
     obj.to_mesh.return_value = None
     obj.matrix_world = Matrix.Identity(4)
     obj.visible_get.return_value = True
-    obj.hide_viewport = True
+    obj.hide_viewport = False
     obj.hide_render = False
+    obj.is_instancer = False
+    obj.location = [0,0,0]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
     return obj
 
 
@@ -226,6 +347,10 @@ def __empty_012():
     obj.visible_get.return_value = True
     obj.hide_viewport = True
     obj.hide_render = True
+    obj.is_instancer = False
+    obj.location = [0,0,3]
+    obj.rotation_euler = [0,0,0]
+    obj.scale = [1,1,1]
     return obj
 
 
@@ -288,9 +413,8 @@ def export():
     tempName = f"{tempfile.gettempdir()}/test_export.amf"
     exp = ExportAMF()
     exp.filepath = tempName
-    exp.export_strategy = "selection"
+    exp.use_selection = True
     exp.export_format = 'native'
-    exp.group_strategy = 'parents_selected'
     exp.use_mesh_modifiers = False
     exp.target_unit = 'meter'
     return exp

@@ -33,6 +33,7 @@ def flatten(parent):
 class AMFExport():
     """ AMF export service base class """
 
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
     # Conversions from Blender units (meter) to AMF units
     UNIT_CONVERSION = {
         'meter': 1,
@@ -41,8 +42,9 @@ class AMFExport():
         'inch': 39.37008,
         'feet': 3.28084,
     }
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
 
-    def export_document(self, xml, context, objects, groups):
+    def export_document(self, xml, context, amfobjs, constellations):
         """ Format data in XML file conform to target format """
         # This service method is supposed to be overloaded
 
@@ -65,11 +67,11 @@ class AMFExport():
                         with xc.helement("z") as xz:
                             xz.text(str(vertex.co[2]))
 
-    def export_volume(self, xml, triangles, metadata=[], vertex_id_offset=0):
+    def export_volume(self, xml, triangles, metadata={}, vertex_id_offset=0):
         """ Export one list of vertices """
         with xml.element("volume") as xvo:
-            for meta in metadata:
-                self.export_metadata(xvo, meta["name"], meta["value"])
+            for key in metadata:
+                self.export_metadata(xvo, key, metadata[key])
             with xvo.helement("color") as xcol:
                 with xcol.helement("r") as xr:
                     xr.text("1")
@@ -86,6 +88,7 @@ class AMFExport():
                     with xt.helement("v3") as xv:
                         xv.text(triangle.vertices[2]+vertex_id_offset)
 
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
     @staticmethod
     def object2mesh(obj, matrix, use_mesh_modifiers=True):
         """ Convert blender object to exportable mesh """
@@ -113,7 +116,9 @@ class AMFExport():
         mat = matrix @ obj.matrix_world
         mesh.transform(mat)
         return mesh
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
 
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
     @classmethod
     def compute_scaling(cls, target_unit):
         """ Select the better unit from blender to AMF
@@ -131,15 +136,22 @@ class AMFExport():
             unit = target_unit
             scale = cls.UNIT_CONVERSION[unit]
         return (unit, scale, Matrix.Scale(scale, 4))
+# ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ... obsolete ...
 
 
 class Group:
     name = ""
     objects = []
+    parent = None
+    location = [0.0, 0.0, 0.0]
 
-    def __init__(self, name, objects=[]):
+    def __init__(self, name, objects=[], parent=None):
         self.name = name
         self.objects = objects
+        self.parent = parent
+        if self.parent is not None:
+            if hasattr(self.parent, "location"):
+                self.location = self.parent.location
 
     def append(self, obj):
         self.objects.append(obj)

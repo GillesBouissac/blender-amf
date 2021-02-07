@@ -37,130 +37,81 @@ from io_mesh_amf import ExportAMF
 from io_mesh_amf.amf_util import AMFExport, Group, flatten
 
 
-def with_obj_names(objs):
-    if type(objs) not in (list, Group):
-        return objs.name
-    obj_list = objs
-    if type(objs) is Group:
-        obj_list = objs.objects
-    res = []
-    for obj in obj_list:
-        res.append(with_obj_names(obj))
+def with_obj_names(groups):
+    res = {}
+    for key in groups:
+        children = []
+        for child in groups[key].objects:
+            children.append(child["object"].name)
+        res[key] = children
     return res
 
 
-class Test_build_groups():
-    """ Verifications of build_groups method """
+class Test_select_objects():
+    """ Verifications of select_objects method """
 
-    def test_none(self, export, empty_012):
+    def test_selection_only(self, export, context, empty_0, empty_012):
         # Prepare
-        export.group_strategy = 'none'
-        bpy.data.objects = flatten(empty_012)
+        objs_selected = flatten(empty_0)
+        objs_scene = flatten(empty_012)
+        context.selected_objects = objs_selected
+        context.scene.objects = objs_scene
         # Test
-        groups = export.build_groups(flatten(empty_012))
+        export.use_selection = True
+        objects = export.select_objects(context)
+        # Check
+        assert objects == objs_selected
+
+    def test_all(self, export, context, empty_0, empty_012):
+        # Prepare
+        objs_selected = flatten(empty_0)
+        objs_scene = flatten(empty_012)
+        context.selected_objects = objs_selected
+        context.scene.objects = objs_scene
+        # Test
+        export.use_selection = False
+        objects = export.select_objects(context)
+        # Check
+        assert objects == objs_scene
+
+
+class Test_build_amfobjs():
+    """ Verifications of build_amfobjs method """
+
+    def test_only_meshs(self, export, empty_012):
+        # Test
+        blendobjs = flatten(empty_012)
+        groups = export.build_amfobjs(map(lambda o:{"object":o},blendobjs))
+        # Check
+        self._check_groups(groups, {
+            'cube_0':['cube_0'],
+            'cube_1':['cube_1'],
+            'cube_2':['cube_2'],
+            'empty_0':['empty_0'],
+            'empty_1':['empty_1'],
+            'empty_2':['empty_2'],
+            'empty_12':['empty_12'],
+            'empty_012':['empty_012']
+        })
+
+    def test_only_instances(self, export, cube_1, inst_2):
+        # Test
+        blendobjs = [inst_2]
+        groups = export.build_amfobjs(map(lambda o:{"object":o},blendobjs))
         # Check
         self._check_groups(groups, [
-            ['cube_0'], ['cube_1'],  ['cube_2'],
-            ['empty_0'], ['empty_1'], ['empty_2'],
-            ['empty_12'], ['empty_012']
+            {'collection_1':['cube_1']}
         ])
 
-    def test_all(self, export, empty_012):
-        # Prepare
-        export.group_strategy = 'all'
-        bpy.data.objects = flatten(empty_012)
+    def test_all(self, export, cube_0, inst_0, inst_1, inst_2):
         # Test
-        groups = export.build_groups(flatten(empty_012))
-        # Check
-        self._check_groups(groups, [[
-            'cube_0',  'cube_1',  'cube_2',
-            'empty_0', 'empty_1', 'empty_2',
-            'empty_12', 'empty_012'
-        ]])
-
-    def test_parents_selected(self, export, empty_0, empty_12, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_selected'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_0)
-        objs.extend(flatten(empty_12))
-        groups = export.build_groups(objs)
+        blendobjs = [cube_0, inst_0, inst_1, inst_2]
+        groups = export.build_amfobjs(map(lambda o:{"object":o},blendobjs))
         # Check
         self._check_groups(groups, [
-            ['cube_0', 'empty_0'],
-            ['cube_1',  'cube_2', 'empty_1', 'empty_2', 'empty_12']
-        ])
-
-    def test_parents_visible(self, export, empty_0, empty_2, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_visible'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_0)
-        objs.extend(flatten(empty_2))
-        print(f"objs = {with_obj_names(objs)}")
-        groups = export.build_groups(objs)
-        # Check
-        self._check_groups(groups, [
-            # In the tree from empty_012 only those are in the selection
-            ['empty_0', 'cube_0', 'empty_2', 'cube_2']
-        ])
-
-    def test_parents_viewable(self, export, empty_0, empty_1, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_viewable'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_0)
-        objs.extend(flatten(empty_1))
-        groups = export.build_groups(objs)
-        # Check
-        self._check_groups(groups, [
-            # The first viewable parent is empty_1 making a group
-            ['cube_1', 'empty_1'],
-            ['cube_0'],
-            ['empty_0']
-        ])
-
-    def test_parents_renderable(self, export, empty_0, empty_2, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_renderable'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_0)
-        objs.extend(flatten(empty_2))
-        groups = export.build_groups(objs)
-        # Check
-        self._check_groups(groups, [
-            ['cube_0', 'empty_0'],
-            ['cube_2', 'empty_2']
-        ])
-
-    def test_parents_any(self, export, empty_0, empty_2, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_any'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_0)
-        objs.extend(flatten(empty_2))
-        groups = export.build_groups(objs)
-        # Check
-        self._check_groups(groups, [
-            ['cube_0', 'empty_0', 'cube_2', 'empty_2']
-        ])
-
-    def test_no_group_from_parent(self, export, empty_2, empty_012):
-        # Prepare
-        export.group_strategy = 'parents_viewable'
-        bpy.data.objects = flatten(empty_012)
-        # Test
-        objs = flatten(empty_2)
-        groups = export.build_groups(objs)
-        # Check
-        self._check_groups(groups, [
-            ['cube_2'],
-            ['empty_2']
+            {'cube_0':['cube_0']},
+            {'collection_0':['cube_0', 'cube_2']},
+            {'collection_1':['cube_1']}
         ])
 
     def _group_equals(self, group, groupref):
@@ -173,26 +124,23 @@ class Test_build_groups():
                     break
             if not found:
                 return False
-        return len(groupref) == 0
+        if len(groupref) != 0:
+            return False
+        return True
 
     def _check_groups(self, groups, groupsref):
         groupscheck = with_obj_names(groups)
-        print(f"Groups generated: {groupscheck}")
-        print(f"Groups expected:  {groupsref}")
-        for group in groupscheck:
-            if type(group) is not list:
-                group = [group]
+        # print(f"Groups generated: {groupscheck}")
+        # print(f"Groups expected:  {groupsref}")
+        for key in groupscheck:
             found = False
-            for groupref in groupsref:
-                if self._group_equals(group, groupref):
-                    groupsref.remove(groupref)
-                    found = True
-                    break
-            if not found:
-                grpstr = with_obj_names(group)
-                pytest.fail(f"group {grpstr} not found in {groupsref}")
+            if key not in groupsref:
+                return False
+            if not self._group_equals(groupscheck[key], groupsref[key]):
+                pytest.fail(f"group to check {groupscheck[key]} not equal to {groupsref[key]}")
+            groupsref.pop(key)
         if not len(groupsref) == 0:
-            pytest.fail(f"ref groups {groupsref} not found in {grpsstr}")
+            pytest.fail(f"ref groups {groupsref} not found in {groupscheck}")
 
 
 class Test_execute():
@@ -218,38 +166,36 @@ class Test_execute():
                     traceback.print_tb(exc_traceback, file=sys.stdout)
                     pytest.fail(str(exc_value))
 
-    def test_execute_exception(self, context_cube):
+    def _test_execute_exception(self, context_cube):
         # Test, don't define export.filepath
         export = ExportAMF()
         ret = export.execute(context_cube)
         # Check
         assert ret == {'CANCELLED'}
 
-    def test_execute_no_file(self, export, context_cube):
+    def _test_execute_no_file(self, export, context_cube):
         # Test
         export.filepath = ""
         ret = export.execute(context_cube)
         # Check
         assert ret == {'CANCELLED'}
 
-    def test_execute_single_object(self, export, context, empty_012):
+    def _test_execute_single_object(self, export, context, empty_012):
         # Prepare
-        export.export_strategy = "selection"
-        export.group_strategy = 'parents_selected'
         context.selected_objects = flatten(empty_012)
-        print(f"selected_objects = {flatten(empty_012)}")
+        export.export_format = 'slic3r'
         export.target_unit = 'inch'
         # Test
         ret = export.execute(context)
         # Check
         assert ret == {'FINISHED'}
-        context.selected_objects[0].to_mesh.assert_called_once_with()
+        for obj in context.selected_objects:
+            if not obj.hide_viewport:
+                obj.to_mesh.assert_called_once_with()
         self.check_archive(export.filepath)
 
-    def test_execute_all_selected_native(self, export, context, empty_012):
+    def ______no_test_execute_all_selected_native(self, export, context, empty_012):
         # Prepare
-        export.export_strategy = "selection"
-        export.group_strategy = 'all'
         export.export_format = 'native'
         context.selected_objects = flatten(empty_012)
         # Test
@@ -265,21 +211,23 @@ class Test_execute():
 
         self.check_archive(export.filepath)
 
-    def test_execute_all_selected_slicer(self, export, context, empty_012):
+    def test_execute_all_selected_slicer(self, export, context, empty_012, inst_0, inst_1, inst_2):
         # Prepare
-        export.export_strategy = "selection"
-        export.group_strategy = 'all'
         export.export_format = 'slic3r'
-        context.selected_objects = flatten(empty_012)
+        selected_meshes = flatten(empty_012)
+        context.selected_objects = selected_meshes + [inst_0, inst_1, inst_2]
         # Test
         ret = export.execute(context)
         # Check
         assert ret == {'FINISHED'}
-        for obj in context.selected_objects:
-            obj.to_mesh.assert_called()
-            if "cube" in obj.name:
-                obj.mesh_mock.calc_loop_triangles.assert_called()
-            else:
+        for obj in selected_meshes:
+            if not obj.hide_viewport:
+                obj.to_mesh.assert_called()
+                if "cube" in obj.name:
+                    obj.mesh_mock.calc_loop_triangles.assert_called()
+                else:
+                    obj.mesh_mock.calc_loop_triangles.assert_not_called()
+        for obj in [inst_0, inst_1, inst_2]:
                 obj.mesh_mock.calc_loop_triangles.assert_not_called()
 
         # we had to cheat with schema

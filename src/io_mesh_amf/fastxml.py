@@ -124,7 +124,7 @@ def XMLWriter(
     compactempty=True,
     indentation=_DEFAULT_INDENTATION
 ):
-    """ Create a document for output on given file-like fd object
+    """ Create a document to write on given file-like fd object
     Keyword arguments:
         fd           - file-like object, only write(text) method is required
         encoding     - xml file encoding, this is the caller responsabily to

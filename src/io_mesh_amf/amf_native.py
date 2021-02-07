@@ -77,9 +77,11 @@ class AMFNative(AMFExport):
     def export_constellations(self, xml, groups):
         """ Export objects groups """
         for group in groups:
+            # Filter objects not exported
             group = Group(
                 group.name,
-                [obj for obj in group.objects if obj.name in self.idRegistry])
+                [obj for obj in group.objects if obj.name in self.idRegistry],
+                group.parent)
             if len(group.objects) > 0:
                 with xml.element("constellation", {"id": self.idNext}) as xco:
                     self.idNext += 1
@@ -87,11 +89,11 @@ class AMFNative(AMFExport):
                         attrs = {"objectid": self.idRegistry[obj.name]}
                         with xco.element("instance", attrs) as xin:
                             with xin.helement("deltax") as xd:
-                                xd.text("0.0")
+                                xd.text(str(group.location[0]))
                             with xin.helement("deltay") as xd:
-                                xd.text("0.0")
+                                xd.text(str(group.location[1]))
                             with xin.helement("deltaz") as xd:
-                                xd.text("0.0")
+                                xd.text(str(group.location[2]))
                             with xin.helement("rx") as xd:
                                 xd.text("0.0")
                             with xin.helement("ry") as xd:

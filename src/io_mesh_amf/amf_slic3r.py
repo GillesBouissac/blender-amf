@@ -23,6 +23,7 @@
 # <pep8 compliant>
 
 import bpy
+import math
 from . amf_util import AMFExport, Group, flatten
 
 
@@ -32,87 +33,115 @@ class AMFSlic3r(AMFExport):
     # Map blender unique names to unique id in exported file
     idRegistry = {}
     # Next free id
-    idNext = 0
+    nextId = 0
+    # Material giving extruder number from material unique name
+    materialRegistry = {}
+    # Next extruder number
+    nextExtruder = 1
+    unit = "meter"
+    scale = 1
 
-    def export_document(self, xml, context, objects, groups):
+    def export_document(self, xml, context, amfobjs, constellations):
         """ Format data in XML file conform to AMF schema """
         self.idRegistry = {}
-        self.idNext = 0
+        self.nextId = 0
 
-        (unit, scale, matrix) = AMFExport.compute_scaling(self.target_unit)
-        attrs = {"unit": unit, "version": "1.1"}
+        attrs = {"unit": self.unit, "version": "1.1"}
         with xml.element("amf", attrs) as root:
             self.export_metadata(root, "name", context.scene.name)
-            self.export_metadata(root, "scale", scale)
-            self.export_groups_as_object(root, groups, matrix)
-            self.export_constellations(root, groups)
+            self.export_metadata(root, "scale", self.scale)
+            self.export_objects(root, amfobjs)
+            self.export_constellations(root, constellations)
 
-    def export_groups_as_object(self, xml, groups, matrix):
+    def export_objects(self, xml, amfobjs):
         """ Export objects list, one per group """
         wm = bpy.context.window_manager
-        wm.progress_begin(0, len(groups)-1)
-        for i in range(len(groups)):
-            group = groups[i]
+        wm.progress_begin(0, len(amfobjs)-1)
+        values = list(amfobjs.values())
+        for i in range(len(values)):
+            amfobj = values[i]
             wm.progress_update(i)
-            self.export_group_as_object(xml, group, matrix)
+            self.export_object(xml, amfobj)
         wm.progress_end()
 
-    def export_group_as_object(self, xml, group, matrix):
+    def export_object(self, xml, amfobj):
         """ Export one object """
-        meshedobj = []
-        meshes = []
-        for obj in group.objects:
-            mesh = AMFExport.object2mesh(obj, matrix, self.use_mesh_modifiers)
-            if mesh is not None and len(mesh.loop_triangles) > 4:
-                meshes.append(mesh)
-                meshedobj.append(obj)
+        for obj in amfobj.objects:
+            material = obj['object'].active_material
+            if material is not None:
+                if material.name not in self.materialRegistry:
+                    extruder = 1
+                    if "extruder" in material.keys():
+                        extruder = math.floor(material.get("extruder"))
+                    else:
+                        extruder = self.nextExtruder
+                        self.nextExtruder += 1
+                    self.materialRegistry[material.name] = extruder
+        if len(amfobj.objects)>0:
+            with xml.element("object", {"id": self.nextId}) as xobj:
+                self.idRegistry[amfobj.name] = self.nextId
+                self.nextId += 1
+                self.export_metadata(xobj, "name", amfobj.name)
+                self.export_meshes(xobj, amfobj.objects)
 
-        with xml.element("object", {"id": self.idNext}) as xobj:
-            self.idRegistry[group.name] = self.idNext
-            self.idNext += 1
-            self.export_metadata(xobj, "name", group.name)
-            self.export_meshes(xobj, meshes, meshedobj)
-
-    def export_meshes(self, xml, meshes, objs):
+    def export_meshes(self, xml, objects):
         """ Export one group of meshes """
         with xml.element("mesh") as xmesh:
-            # Here is the cheating: Slicer uses multiple
-            #   Volume elements in object element
-            # The AMF Schema does not allow this
-            # They merge multiple objects in one
-            group_vertices = []
-            meshes_idx = []
+            # Mesh made from multiple volumes
+            #   ie one list of vertices for multiple volumes
+            # Not allowed by amf schema but most implementations do this
+            vertices = []
             next_idx = 0
-            for mesh in meshes:
-                group_vertices.extend(mesh.vertices)
-                meshes_idx.append(next_idx)
-                next_idx += len(mesh.vertices)
-            self.export_vertices(xmesh, group_vertices)
-            for i in range(len(meshes)):
-                mesh = meshes[i]
-                obj = objs[i]
+            for obj in objects:
+                mesh = obj["mesh"]
+                vertices.extend(mesh.vertices)
+            self.export_vertices(xmesh, vertices)
+            for obj in objects:
+                mesh = obj["mesh"]
+                obj = obj["object"]
+                metadata = {
+                    "name": obj.name,
+                    "slic3r.source_offset_x": 100,
+                    "slic3r.source_offset_y": 100,
+                    "slic3r.source_offset_z": 0
+                }
+                material = obj.active_material
+                if material is not None:
+                    metadata["slic3r.extruder"] = self.materialRegistry[material.name]
                 self.export_volume(
                     xmesh,
                     mesh.loop_triangles,
-                    [{"name": "name", "value": obj.name}],
-                    meshes_idx[i])
+                    metadata,
+                    next_idx)
+                next_idx += len(mesh.vertices)
 
-    def export_constellations(self, xml, groups):
-        """ Export objects groups """
-        for group in groups:
-            with xml.element("constellation", {"id": self.idNext}) as xco:
-                self.idNext += 1
-                attrs = {"objectid": self.idRegistry[group.name]}
-                with xco.element("instance", attrs) as xin:
-                    with xin.helement("deltax") as xd:
-                        xd.text("0.0")
-                    with xin.helement("deltay") as xd:
-                        xd.text("0.0")
-                    with xin.helement("deltaz") as xd:
-                        xd.text("0.0")
-                    with xin.helement("rx") as xd:
-                        xd.text("0.0")
-                    with xin.helement("ry") as xd:
-                        xd.text("0.0")
-                    with xin.helement("rz") as xd:
-                        xd.text("0.0")
+    def export_constellations(self, xml, constellations):
+        """ Export constellations """
+        for constellation in constellations:
+            blendobj = constellation["object"]
+            instances = []
+            if blendobj.is_instancer:
+                coll = blendobj.instance_collection
+                if coll.name in self.idRegistry:
+                    instances.append(coll)
+            else:
+                if blendobj.name in self.idRegistry:
+                    instances = [blendobj]
+            if len(instances)>0:
+                with xml.element("constellation", {"id": self.nextId}) as xco:
+                    self.nextId += 1
+                    for instance in instances:
+                        attrs = {"objectid": self.idRegistry[instance.name]}
+                        with xco.element("instance", attrs) as xin:
+                            with xin.helement("deltax") as xd:
+                                xd.text(str(blendobj.location[0]))
+                            with xin.helement("deltay") as xd:
+                                xd.text(str(blendobj.location[1]))
+                            with xin.helement("deltaz") as xd:
+                                xd.text(str(blendobj.location[2]))
+                            with xin.helement("rx") as xd:
+                                xd.text(str(blendobj.rotation_euler[0]))
+                            with xin.helement("ry") as xd:
+                                xd.text(str(blendobj.rotation_euler[1]))
+                            with xin.helement("rz") as xd:
+                                xd.text(str(blendobj.rotation_euler[2]))

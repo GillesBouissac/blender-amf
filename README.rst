@@ -1,6 +1,8 @@
 
-blender-amf |build-status| |coverage-status|
-============================================
+|build-status| |coverage-status|
+
+|amf-logo| blender-amf
+======================
 
 Blender addon to export objects in Additive Manufacturing Format **AMF**
 
@@ -26,24 +28,38 @@ Don't know if I will implement everything, i don't really need material/textures
   * |unchecked| Material support
   * |unchecked| Texture support
 
+Download
+------------
+
+Release version
+....................
+
+ * download distribution from `latest release <https://github.com/GillesBouissac/blender-amf/releases>`_ 
+
+Latest version
+..............
+
+ * use button [Code] then Download ZIP
+ * Unzip in temp directory
+ * Rezip only the directory io_mesh_amf to io_mesh_amf.zip
+
 Installation
 ------------
 
-#. Download the repository (zip with menu or git clone)
-#. Unzip in temp directory
-#. Install src/io_mesh_amf into blender in either way:
+Fast installation
+.................
 
-   * Local user installation all platform:
-      + Zip src/io_mesh_amf and import that zip in Blender with:
-      + "Edit/Preferences/Add-ons/Install"
-   * Multi user installation all platform:
-      + ``# Don't forget to replace <version> and <path/to/blender>``
-      + ``cp -r src/io_mesh_amf <path/to/blender>/current/<version>/scripts/addons/``
-   * Other way for local user installation for Linux:
-      + ``# Don't forget to replace <version>``
-      + ``cp -r src/io_mesh_amf ~/.config/blender/<version>/scripts/addons/``
+ * In blender:
+    + "Edit/Preferences/Add-ons/Install"
+    + Select io_mesh_amf.zip
+    + Activate the add-on
 
+Multi user installation (Linux)
+...............................
 
+ * Execute these commands, don't forget to replace <version> and <path/to/blender>
+    + ``unzip io_mesh_amf.zip``
+    + ``cp -r io_mesh_amf/ <path/to/blender>/current/<version>/scripts/addons/``
 
 Test
 ----
@@ -79,6 +95,10 @@ PEP 8
    :target: https://coveralls.io/r/GillesBouissac/blender-amf
    :alt: Test coverage percentage
 
+.. |amf-logo| image:: images/amf.png
+   :width: 50
+
 ..  |checked| unicode:: U+2611
 ..  |unchecked| unicode:: U+2610
+
 
